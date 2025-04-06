@@ -6,7 +6,7 @@ pipeline {
     }
 
     tools {
-        git 'DefaultGit'
+        git 'Default'
         maven 'M3'
     }
 
