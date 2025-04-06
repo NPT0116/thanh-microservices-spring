@@ -6,8 +6,10 @@ pipeline {
     }
 
     tools {
-        maven "M3" // Ensure this matches your Maven installation configured in Jenkins
+        git 'DefaultGit'
+        maven 'M3'
     }
+
 
     stages {
         stage('Build & Test Admin Server') {
