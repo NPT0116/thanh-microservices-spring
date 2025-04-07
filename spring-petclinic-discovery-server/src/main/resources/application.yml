@@ -19,3 +19,9 @@ spring:
       on-profile: docker
     import: configserver:http://config-server:8888
 
+eureka:
+  client:
+    registerWithEureka: true
+    fetchRegistry: true
+    service-url:
+      defaultZone: http://discovery-server:8080/eureka/
