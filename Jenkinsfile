@@ -2,7 +2,13 @@ pipeline {
     agent { label 'universal-agent' }
 
     tools {
+        jdk 'jdk21'
         maven 'M3'
+    }
+
+    environment {
+        JAVA_HOME = "${tool 'jdk21'}"
+        PATH = "${env.JAVA_HOME}/bin${isUnix() ? ':' : ';'}${env.PATH}"
     }
 
     parameters {
@@ -12,8 +18,8 @@ pipeline {
     stages {
         stage('📥 Clone repo') {
             steps {
-                git branch: "${params.DEPLOY_BRANCH}", 
-                    url: 'https://github.com/NPT0116/thanh-microservices-spring.git', 
+                git branch: "${params.DEPLOY_BRANCH}",
+                    url: 'https://github.com/NPT0116/thanh-microservices-spring.git',
                     credentialsId: 'github-thanh-token'
             }
         }
@@ -32,17 +38,15 @@ pipeline {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'dockerhub-login', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                        def loginCmd = isUnix() 
-                            ? "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin" 
+                        def loginCmd = isUnix()
+                            ? "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
                             : "docker login -u %DOCKER_USER% -p %DOCKER_PASS%"
 
-                        def buildCmd = isUnix() 
+                        def buildCmd = isUnix()
                             ? "./mvnw -pl spring-petclinic-vets-service spring-boot:build-image -DskipTests -Dspring-boot.build-image.imageName=npt1601/spring-petclinic-vets-service:latest"
                             : "mvnw.cmd -pl spring-petclinic-vets-service spring-boot:build-image -DskipTests -Dspring-boot.build-image.imageName=npt1601/spring-petclinic-vets-service:latest"
 
-                        def pushCmd = isUnix() 
-                            ? "docker push npt1601/spring-petclinic-vets-service:latest" 
-                            : "docker push npt1601/spring-petclinic-vets-service:latest"
+                        def pushCmd = "docker push npt1601/spring-petclinic-vets-service:latest"
 
                         isUnix() ? sh(loginCmd) : bat(loginCmd)
                         isUnix() ? sh(buildCmd) : bat(buildCmd)
@@ -55,7 +59,8 @@ pipeline {
         stage('🚀 Deploy to Minikube') {
             steps {
                 script {
-                    def kubeConfigPath = isUnix() ? '/Users/npt/.kube/config' : 'C:\\Users\\npt\\.kube\\config'
+                    def home = isUnix() ? env.HOME : env.USERPROFILE
+                    def kubeConfigPath = "${home}${isUnix() ? '/.kube/config' : '\\.kube\\config'}"
                     def applyCmd = isUnix()
                         ? "export KUBECONFIG=${kubeConfigPath} && kubectl apply -f k8s/vets-deployment.yaml"
                         : "set KUBECONFIG=${kubeConfigPath} && kubectl apply -f k8s\\vets-deployment.yaml"
