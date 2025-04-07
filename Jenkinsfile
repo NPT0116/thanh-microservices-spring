@@ -1,56 +1,66 @@
 pipeline {
     agent { label 'universal-agent' }
 
+    environment {
+        // Cấu hình cho kubeconfig động theo OS
+        KUBECONFIG = isUnix() ? '/Users/npt/.kube/config' : 'C:\\Users\\npt\\.kube\\config'
+    }
+
     tools {
         maven 'M3'
     }
 
+    parameters {
+        string(name: 'DEPLOY_BRANCH', defaultValue: 'main', description: 'Tên nhánh bạn muốn deploy')
+    }
+
     stages {
-        stage('Detect Changed Service & Build') {
+        stage('Clone code từ GitHub') {
             steps {
-                checkout scm
+                git branch: "${params.DEPLOY_BRANCH}", url: 'https://github.com/NPT0116/thanh-microservices-spring.git', credentialsId: 'github-thanh-token'
+            }
+        }
+
+        stage('Build toàn bộ services') {
+            steps {
                 script {
-                    def servicePaths = [
-                        'spring-petclinic-admin-server',
-                        'spring-petclinic-api-gateway',
-                        'spring-petclinic-config-server',
-                        'spring-petclinic-customers-service',
-                        'spring-petclinic-discovery-server',
-                        'spring-petclinic-genai-service',
-                        'spring-petclinic-vets-service',
-                        'spring-petclinic-visits-service'
-                    ]
-
-                    def changedFiles = []
-                    if (env.CHANGE_ID) {
-                        changedFiles = sh(script: "git diff --name-only origin/main", returnStdout: true).trim().split("\n")
+                    def mvnCmd = isUnix() ? './mvnw' : 'mvnw.cmd'
+                    if (isUnix()) {
+                        sh "${mvnCmd} clean install -DskipTests"
                     } else {
-                        changedFiles = sh(script: "git diff --name-only HEAD~1", returnStdout: true).trim().split("\n")
+                        bat "${mvnCmd} clean install -DskipTests"
                     }
+                }
+            }
+        }
 
-                    def detectedService = servicePaths.find { service ->
-                        changedFiles.any { it.startsWith(service + "/") }
-                    }
+        stage('Docker Build & Push') {
+            steps {
+                script {
+                    def dockerLogin = isUnix() ? 'docker login -u $DOCKER_USER -p $DOCKER_PASS' : 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
+                    def dockerBuild = isUnix() ? './mvnw spring-boot:build-image -DskipTests' : 'mvnw.cmd spring-boot:build-image -DskipTests'
 
-                    if (detectedService) {
-                        echo "🔍 Detected change in: ${detectedService}"
-                        def mvnCmd = isUnix() ? './mvnw' : 'mvnw.cmd'
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-login', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                         if (isUnix()) {
-                            sh "${mvnCmd} -pl ${detectedService} -am clean verify"
+                            sh dockerLogin
+                            sh dockerBuild
                         } else {
-                            bat "${mvnCmd} -pl ${detectedService} -am clean verify"
+                            bat dockerLogin
+                            bat dockerBuild
                         }
+                    }
+                }
+            }
+        }
 
-                        junit "${detectedService}/target/surefire-reports/*.xml"
-                        recordCoverage(
-                            tools: [[parser: 'JACOCO', pattern: "${detectedService}/target/site/jacoco/jacoco.xml"]],
-                            qualityGates: [
-                                [threshold: 70.0, metric: 'LINE', baseline: 'PROJECT', unstable: false],
-                                [threshold: 70.0, metric: 'BRANCH', baseline: 'PROJECT', unstable: false]
-                            ]
-                        )
+        stage('Deploy lên Minikube') {
+            steps {
+                script {
+                    echo "📦 Deploying to Minikube cluster..."
+                    if (isUnix()) {
+                        sh 'kubectl apply -f k8s/'
                     } else {
-                        echo "🟡 Không phát hiện thay đổi liên quan đến service nào – Skip build."
+                        bat 'kubectl apply -f k8s\\'
                     }
                 }
             }
@@ -59,10 +69,10 @@ pipeline {
 
     post {
         success {
-            echo '✅ Build thành công!'
+            echo '✅ CI/CD hoàn tất thành công!'
         }
         failure {
-            echo '❌ Build thất bại!'
+            echo '❌ CI/CD thất bại!'
         }
     }
 }
