@@ -15,8 +15,7 @@ pipeline {
         stage('📥 Checkout') {
             steps {
                 git branch: "${env.BRANCH_NAME ?: 'main'}",
-                    url: 'https://github.com/NPT0116/thanh-microservices-spring.git',
-                    credentialsId: 'github-thanh-token'
+                    url: 'https://github.com/NPT0116/thanh-microservices-spring.git'
             }
         }
 
