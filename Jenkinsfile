@@ -22,7 +22,10 @@ pipeline {
         stage('📦 Build & Push tất cả service') {
             steps {
                 script {
-                    def commitId = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+                    def commitId = isUnix()
+                        ? sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+                        : bat(script: "git rev-parse --short HEAD", returnStdout: true).readLines().last().trim()
+
                     echo "🧬 Commit ID hiện tại: ${commitId}"
 
                     def services = [
