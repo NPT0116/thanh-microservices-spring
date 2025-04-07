@@ -11,49 +11,51 @@ pipeline {
         PATH = "${env.JAVA_HOME}/bin${isUnix() ? ':' : ';'}${env.PATH}"
     }
 
-    parameters {
-        string(name: 'VETS_BRANCH',       defaultValue: 'main', description: 'Branch của vets-service')
-        string(name: 'CUSTOMERS_BRANCH',  defaultValue: 'main', description: 'Branch của customers-service')
-        string(name: 'VISITS_BRANCH',     defaultValue: 'main', description: 'Branch của visits-service')
-        string(name: 'GATEWAY_BRANCH',    defaultValue: 'main', description: 'Branch của api-gateway')
-        string(name: 'CONFIG_BRANCH',     defaultValue: 'main', description: 'Branch của config-server')
-        string(name: 'DISCOVERY_BRANCH',  defaultValue: 'main', description: 'Branch của discovery-server')
-        string(name: 'ADMIN_BRANCH',      defaultValue: 'main', description: 'Branch của admin-server')
-    }
-
     stages {
-        stage('🚀 Deploy các service') {
+        stage('📥 Checkout') {
+            steps {
+                git branch: "${env.BRANCH_NAME ?: 'main'}",
+                    url: 'https://github.com/NPT0116/thanh-microservices-spring.git',
+                    credentialsId: 'github-thanh-token'
+            }
+        }
+
+        stage('📦 Build & Push tất cả service') {
             steps {
                 script {
-                    def home = isUnix() ? env.HOME : env.USERPROFILE
-                    def kubeConfigPath = "${home}${isUnix() ? '/.kube/config' : '\\.kube\\config'}"
+                    def commitId = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+                    echo "🧬 Commit ID hiện tại: ${commitId}"
 
                     def services = [
-                        [name: 'vets-service',       branch: params.VETS_BRANCH],
-                        [name: 'customers-service',  branch: params.CUSTOMERS_BRANCH],
-                        [name: 'visits-service',     branch: params.VISITS_BRANCH],
-                        [name: 'api-gateway',        branch: params.GATEWAY_BRANCH],
-                        [name: 'config-server',      branch: params.CONFIG_BRANCH],
-                        [name: 'discovery-server',   branch: params.DISCOVERY_BRANCH],
-                        [name: 'admin-server',       branch: params.ADMIN_BRANCH]
+                        'vets-service',
+                        'customers-service',
+                        'visits-service',
+                        'api-gateway',
+                        'config-server',
+                        'discovery-server',
+                        'admin-server'
                     ]
 
-                    services.each { svc ->
-                        def tag = (svc.branch == 'main') 
-                            ? 'latest' 
-                            : getCommitId(svc.branch)
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-login', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        def loginCmd = isUnix()
+                            ? "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
+                            : "docker login -u %DOCKER_USER% -p %DOCKER_PASS%"
 
-                        def fullImage = "npt1601/${svc.name}:${tag}"
-                        def deploymentName = "${svc.name}-deployment"
-                        def containerName = svc.name
+                        isUnix() ? sh(loginCmd) : bat(loginCmd)
 
-                        echo "⚙️ Triển khai ${deploymentName} với image: ${fullImage}"
+                        services.each { svc ->
+                            def image = "npt1601/${svc}:${commitId}"
+                            def buildCmd = isUnix()
+                                ? "./mvnw -pl spring-petclinic-${svc} spring-boot:build-image -DskipTests -Dspring-boot.build-image.imageName=${image}"
+                                : "mvnw.cmd -pl spring-petclinic-${svc} spring-boot:build-image -DskipTests -Dspring-boot.build-image.imageName=${image}"
 
-                        def deployCmd = isUnix()
-                            ? "export KUBECONFIG=${kubeConfigPath} && kubectl set image deployment/${deploymentName} ${containerName}=${fullImage}"
-                            : "set KUBECONFIG=${kubeConfigPath} && kubectl set image deployment/${deploymentName} ${containerName}=${fullImage}"
+                            def pushCmd = "docker push ${image}"
 
-                        isUnix() ? sh(deployCmd) : bat(deployCmd)
+                            echo "🚧 Đang build image cho ${svc} → ${image}"
+                            isUnix() ? sh(buildCmd) : bat(buildCmd)
+                            echo "📤 Push image lên DockerHub: ${image}"
+                            isUnix() ? sh(pushCmd) : bat(pushCmd)
+                        }
                     }
                 }
             }
@@ -62,19 +64,10 @@ pipeline {
 
     post {
         success {
-            echo '✅ Đã triển khai thành công các service!'
+            echo "✅ CI hoàn tất! Docker images đã được đẩy lên Docker Hub với tag commit ID."
         }
         failure {
-            echo '❌ Triển khai thất bại!'
+            echo "❌ CI thất bại!"
         }
-    }
-}
-
-def getCommitId(String branchName) {
-    if (isUnix()) {
-        return sh(script: "git fetch origin ${branchName} && git rev-parse --short origin/${branchName}", returnStdout: true).trim()
-    } else {
-        def result = bat(script: "git fetch origin ${branchName} && git rev-parse --short origin/${branchName}", returnStdout: true).trim()
-        return result.readLines().last().trim()
     }
 }
