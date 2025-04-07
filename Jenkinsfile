@@ -1,34 +1,27 @@
 pipeline {
     agent none  // We'll define an agent per stage instead
-    environment {
-        // Ensure Windows system commands can be found
-        PATH = "C:\\Windows\\System32;${env.PATH}"
-    }
 
     tools {
-        git 'Default'
-        maven 'M3'
+        maven 'M3'  // Maven tool name in Jenkins
     }
-
 
     stages {
         stage('Build & Test Admin Server') {
             agent { label 'admin-agent' }
-            // Only run if changes are detected in the admin server module
             when { changeset "**/spring-petclinic-admin-server/**" }
             steps {
-                // Always checkout your code
                 checkout scm
-
-                // Build & test only the admin server module (plus any dependencies)
-                bat 'mvn -pl spring-petclinic-admin-server -am clean test jacoco:report'
+                script {
+                    if (isUnix()) {
+                        sh './mvnw -pl spring-petclinic-admin-server -am clean test jacoco:report'
+                    } else {
+                        bat 'mvnw.cmd -pl spring-petclinic-admin-server -am clean test jacoco:report'
+                    }
+                }
             }
             post {
                 always {
-                    // Publish test results
                     junit '**/spring-petclinic-admin-server/target/surefire-reports/*.xml'
-
-                    // Publish coverage (adjust if jacoco.xml is in a different path)
                     recordCoverage(
                         tools: [[parser: 'JACOCO', pattern: '**/spring-petclinic-admin-server/target/site/jacoco/jacoco.xml']],
                         qualityGates: [
@@ -45,7 +38,13 @@ pipeline {
             when { changeset "**/spring-petclinic-api-gateway/**" }
             steps {
                 checkout scm
-                bat 'mvn -pl spring-petclinic-api-gateway -am clean test jacoco:report'
+                script {
+                    if (isUnix()) {
+                        sh './mvnw -pl spring-petclinic-api-gateway -am clean test jacoco:report'
+                    } else {
+                        bat 'mvnw.cmd -pl spring-petclinic-api-gateway -am clean test jacoco:report'
+                    }
+                }
             }
             post {
                 always {
@@ -66,7 +65,13 @@ pipeline {
             when { changeset "**/spring-petclinic-config-server/**" }
             steps {
                 checkout scm
-                bat 'mvn -pl spring-petclinic-config-server -am clean test jacoco:report'
+                script {
+                    if (isUnix()) {
+                        sh './mvnw -pl spring-petclinic-config-server -am clean test jacoco:report'
+                    } else {
+                        bat 'mvnw.cmd -pl spring-petclinic-config-server -am clean test jacoco:report'
+                    }
+                }
             }
             post {
                 always {
@@ -87,7 +92,13 @@ pipeline {
             when { changeset "**/spring-petclinic-customers-service/**/*" }
             steps {
                 checkout scm
-                bat 'mvn -pl spring-petclinic-customers-service -am clean package'
+                script {
+                    if (isUnix()) {
+                        sh './mvnw -pl spring-petclinic-customers-service -am clean package'
+                    } else {
+                        bat 'mvnw.cmd -pl spring-petclinic-customers-service -am clean package'
+                    }
+                }
             }
             post {
                 always {
@@ -108,7 +119,13 @@ pipeline {
             when { changeset "**/spring-petclinic-discovery-server/**" }
             steps {
                 checkout scm
-                bat 'mvn -pl spring-petclinic-discovery-server -am clean test jacoco:report'
+                script {
+                    if (isUnix()) {
+                        sh './mvnw -pl spring-petclinic-discovery-server -am clean test jacoco:report'
+                    } else {
+                        bat 'mvnw.cmd -pl spring-petclinic-discovery-server -am clean test jacoco:report'
+                    }
+                }
             }
             post {
                 always {
@@ -129,18 +146,26 @@ pipeline {
             when { changeset "**/spring-petclinic-genai-service/**/*" }
             steps {
                 checkout scm
-                bat 'mvn -Dmaven.test.failure.ignore=true -pl spring-petclinic-genai-service -am clean package'
+                script {
+                    if (isUnix()) {
+                        sh './mvnw -Dmaven.test.failure.ignore=true -pl spring-petclinic-genai-service -am clean package'
+                    } else {
+                        bat 'mvnw.cmd -Dmaven.test.failure.ignore=true -pl spring-petclinic-genai-service -am clean package'
+                    }
+                }
             }
             post {
                 success {
                     junit '**/spring-petclinic-genai-service/target/surefire-reports/*.xml'
-                    recordCoverage(tools: [[parser: 'JACOCO']],
+                    recordCoverage(
+                        tools: [[parser: 'JACOCO']],
                         id: 'jacoco', name: 'JaCoCo Coverage',
                         sourceCodeRetention: 'EVERY_BUILD',
                         qualityGates: [
-                                [threshold: 70.0, metric: 'LINE', baseline: 'PROJECT', unstable: false],
-                                [threshold: 70.0, metric: 'BRANCH', baseline: 'PROJECT', unstable: false]])
-
+                            [threshold: 70.0, metric: 'LINE', baseline: 'PROJECT', unstable: false],
+                            [threshold: 70.0, metric: 'BRANCH', baseline: 'PROJECT', unstable: false]
+                        ]
+                    )
                 }
             }
         }
@@ -150,7 +175,13 @@ pipeline {
             when { changeset "**/spring-petclinic-vets-service/**" }
             steps {
                 checkout scm
-                bat 'mvn -pl spring-petclinic-vets-service -am clean test jacoco:report'
+                script {
+                    if (isUnix()) {
+                        sh './mvnw -pl spring-petclinic-vets-service -am clean test jacoco:report'
+                    } else {
+                        bat 'mvnw.cmd -pl spring-petclinic-vets-service -am clean test jacoco:report'
+                    }
+                }
             }
             post {
                 always {
@@ -171,7 +202,13 @@ pipeline {
             when { changeset "**/spring-petclinic-visits-service/**" }
             steps {
                 checkout scm
-                bat 'mvn -pl spring-petclinic-visits-service -am clean test jacoco:report'
+                script {
+                    if (isUnix()) {
+                        sh './mvnw -pl spring-petclinic-visits-service -am clean test jacoco:report'
+                    } else {
+                        bat 'mvnw.cmd -pl spring-petclinic-visits-service -am clean test jacoco:report'
+                    }
+                }
             }
             post {
                 always {
