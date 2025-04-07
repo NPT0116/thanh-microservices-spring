@@ -10,55 +10,57 @@ pipeline {
     }
 
     stages {
-        stage('Clone code từ GitHub') {
+        stage('📥 Clone repo') {
             steps {
-                git branch: "${params.DEPLOY_BRANCH}", url: 'https://github.com/NPT0116/thanh-microservices-spring.git', credentialsId: 'github-thanh-token'
+                git branch: "${params.DEPLOY_BRANCH}", 
+                    url: 'https://github.com/NPT0116/thanh-microservices-spring.git', 
+                    credentialsId: 'github-thanh-token'
             }
         }
 
-        stage('Build toàn bộ services') {
+        stage('🔨 Build vets-service') {
             steps {
                 script {
                     def mvnCmd = isUnix() ? './mvnw' : 'mvnw.cmd'
-                    if (isUnix()) {
-                        sh "${mvnCmd} clean install -DskipTests"
-                    } else {
-                        bat "${mvnCmd} clean install -DskipTests"
-                    }
+                    def cmd = "${mvnCmd} -pl spring-petclinic-vets-service -am clean install -DskipTests"
+                    isUnix() ? sh(cmd) : bat(cmd)
                 }
             }
         }
 
-        stage('Docker Build & Push') {
+        stage('🐳 Docker Build & Push') {
             steps {
                 script {
-                    def dockerLogin = isUnix() ? 'docker login -u $DOCKER_USER -p $DOCKER_PASS' : 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
-                    def dockerBuild = isUnix() ? './mvnw spring-boot:build-image -DskipTests' : 'mvnw.cmd spring-boot:build-image -DskipTests'
-
                     withCredentials([usernamePassword(credentialsId: 'dockerhub-login', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                        if (isUnix()) {
-                            sh dockerLogin
-                            sh dockerBuild
-                        } else {
-                            bat dockerLogin
-                            bat dockerBuild
-                        }
+                        def loginCmd = isUnix() 
+                            ? "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin" 
+                            : "docker login -u %DOCKER_USER% -p %DOCKER_PASS%"
+
+                        def buildCmd = isUnix() 
+                            ? "./mvnw -pl spring-petclinic-vets-service spring-boot:build-image -DskipTests -Dspring-boot.build-image.imageName=npt1601/spring-petclinic-vets-service:latest"
+                            : "mvnw.cmd -pl spring-petclinic-vets-service spring-boot:build-image -DskipTests -Dspring-boot.build-image.imageName=npt1601/spring-petclinic-vets-service:latest"
+
+                        def pushCmd = isUnix() 
+                            ? "docker push npt1601/spring-petclinic-vets-service:latest" 
+                            : "docker push npt1601/spring-petclinic-vets-service:latest"
+
+                        isUnix() ? sh(loginCmd) : bat(loginCmd)
+                        isUnix() ? sh(buildCmd) : bat(buildCmd)
+                        isUnix() ? sh(pushCmd) : bat(pushCmd)
                     }
                 }
             }
         }
 
-        stage('Deploy lên Minikube') {
+        stage('🚀 Deploy to Minikube') {
             steps {
                 script {
                     def kubeConfigPath = isUnix() ? '/Users/npt/.kube/config' : 'C:\\Users\\npt\\.kube\\config'
-                    echo "📦 Deploying using KUBECONFIG: ${kubeConfigPath}"
+                    def applyCmd = isUnix()
+                        ? "export KUBECONFIG=${kubeConfigPath} && kubectl apply -f k8s/vets-deployment.yaml"
+                        : "set KUBECONFIG=${kubeConfigPath} && kubectl apply -f k8s\\vets-deployment.yaml"
 
-                    if (isUnix()) {
-                        sh "export KUBECONFIG=${kubeConfigPath} && kubectl apply -f k8s/"
-                    } else {
-                        bat "set KUBECONFIG=${kubeConfigPath} && kubectl apply -f k8s\\"
-                    }
+                    isUnix() ? sh(applyCmd) : bat(applyCmd)
                 }
             }
         }
@@ -66,7 +68,7 @@ pipeline {
 
     post {
         success {
-            echo '✅ CI/CD hoàn tất thành công!'
+            echo '✅ CI/CD cho vets-service thành công!'
         }
         failure {
             echo '❌ CI/CD thất bại!'
