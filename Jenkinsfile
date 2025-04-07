@@ -39,9 +39,15 @@ pipeline {
         stage('🔨 Build & Push image') {
             steps {
                 script {
-                    def commitId = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
-                    def imageName = "npt1601/${params.SERVICE_NAME}:${commitId}"
+                    // Lấy commit ID tuỳ theo OS
+                    def commitId = isUnix()
+                        ? sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+                        : bat(script: "git rev-parse --short HEAD", returnStdout: true)
+                            .trim()
+                            .split('\r?\n')
+                            .find { it.trim() }
 
+                    def imageName = "npt1601/${params.SERVICE_NAME}:${commitId}"
                     echo "📦 Building image ${imageName}"
 
                     withCredentials([usernamePassword(credentialsId: 'dockerhub-login', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
