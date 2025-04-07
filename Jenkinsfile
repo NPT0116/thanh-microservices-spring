@@ -40,12 +40,15 @@ pipeline {
             steps {
                 script {
                     // Lấy commit ID tuỳ theo OS
-                    def commitId = isUnix()
-                        ? sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
-                        : bat(script: "git rev-parse --short HEAD", returnStdout: true)
-                            .trim()
-                            .split('\r?\n')
-                            .find { it.trim() }
+      def commitId
+
+if (isUnix()) {
+    commitId = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+} else {
+    def output = bat(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+    commitId = output.readLines().last().trim()
+}
+
 
                     def imageName = "npt1601/${params.SERVICE_NAME}:${commitId}"
                     echo "📦 Building image ${imageName}"
