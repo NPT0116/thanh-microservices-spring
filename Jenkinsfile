@@ -36,9 +36,9 @@ pipeline {
                         echo "🔍 Detected change in: ${detectedService}"
                         def mvnCmd = isUnix() ? './mvnw' : 'mvnw.cmd'
                         if (isUnix()) {
-                            sh "${mvnCmd} -pl ${detectedService} -am clean test jacoco:report"
+                            sh "${mvnCmd} -pl ${detectedService} -am clean verify"
                         } else {
-                            bat "${mvnCmd} -pl ${detectedService} -am clean test jacoco:report"
+                            bat "${mvnCmd} -pl ${detectedService} -am clean verify"
                         }
 
                         junit "${detectedService}/target/surefire-reports/*.xml"
