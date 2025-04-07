@@ -1,11 +1,6 @@
 pipeline {
     agent { label 'universal-agent' }
 
-    environment {
-        // Cấu hình cho kubeconfig động theo OS
-        KUBECONFIG = isUnix() ? '/Users/npt/.kube/config' : 'C:\\Users\\npt\\.kube\\config'
-    }
-
     tools {
         maven 'M3'
     }
@@ -56,11 +51,13 @@ pipeline {
         stage('Deploy lên Minikube') {
             steps {
                 script {
-                    echo "📦 Deploying to Minikube cluster..."
+                    def kubeConfigPath = isUnix() ? '/Users/npt/.kube/config' : 'C:\\Users\\npt\\.kube\\config'
+                    echo "📦 Deploying using KUBECONFIG: ${kubeConfigPath}"
+
                     if (isUnix()) {
-                        sh 'kubectl apply -f k8s/'
+                        sh "export KUBECONFIG=${kubeConfigPath} && kubectl apply -f k8s/"
                     } else {
-                        bat 'kubectl apply -f k8s\\'
+                        bat "set KUBECONFIG=${kubeConfigPath} && kubectl apply -f k8s\\"
                     }
                 }
             }
