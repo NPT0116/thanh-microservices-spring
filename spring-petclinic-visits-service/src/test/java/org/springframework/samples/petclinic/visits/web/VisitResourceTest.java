@@ -135,7 +135,7 @@ void shouldCreateVisitSuccess() throws Exception {
             .andExpect(status().isBadRequest());
     }
 
-    // Test cho GET với petId không hợp lệ
+    // Test cho GET với petId không hợp lệ abc
     @Test
     void shouldFailGetVisitForInvalidPetId() throws Exception {
         int invalidPetId = 0;
