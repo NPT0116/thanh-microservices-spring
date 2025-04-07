@@ -19,16 +19,23 @@ pipeline {
             }
         }
 
-        stage('📦 Build & Push tất cả service') {
+        stage('🧬 Detect changed services') {
             steps {
                 script {
                     def commitId = isUnix()
                         ? sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
-                        : bat(script: "git rev-parse --short HEAD", returnStdout: true).readLines().last().trim()
+                        : bat(script: "git rev-parse --short HEAD", returnStdout: true).trim().readLines().last().trim()
 
-                    echo "🧬 Commit ID hiện tại: ${commitId}"
+                    echo "🔍 Commit ID: ${commitId}"
 
-                    def services = [
+                    // Lấy danh sách file thay đổi
+                    def changedFiles = isUnix()
+                        ? sh(script: "git diff --name-only HEAD~1 HEAD", returnStdout: true).trim().split("\n")
+                        : bat(script: "git diff --name-only HEAD~1 HEAD", returnStdout: true).trim().readLines()
+
+                    echo "📂 File thay đổi:\n${changedFiles.join('\n')}"
+
+                    def allServices = [
                         'vets-service',
                         'customers-service',
                         'visits-service',
@@ -38,6 +45,25 @@ pipeline {
                         'admin-server'
                     ]
 
+                    def changedServices = [] as Set
+
+                    allServices.each { svc ->
+                        changedFiles.each { file ->
+                            if (file.startsWith("spring-petclinic-${svc}/")) {
+                                changedServices << svc
+                            }
+                        }
+                    }
+
+                    if (changedServices.isEmpty()) {
+                        echo "✅ Không có service nào thay đổi, skip build."
+                        currentBuild.result = 'SUCCESS'
+                        return
+                    }
+
+                    echo "🧱 Các service thay đổi: ${changedServices.join(', ')}"
+
+                    // Build và push
                     withCredentials([usernamePassword(credentialsId: 'dockerhub-login', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                         def loginCmd = isUnix()
                             ? "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
@@ -45,7 +71,7 @@ pipeline {
 
                         isUnix() ? sh(loginCmd) : bat(loginCmd)
 
-                        services.each { svc ->
+                        changedServices.each { svc ->
                             def image = "npt1601/${svc}:${commitId}"
                             def buildCmd = isUnix()
                                 ? "./mvnw -pl spring-petclinic-${svc} spring-boot:build-image -DskipTests -Dspring-boot.build-image.imageName=${image}"
@@ -55,6 +81,7 @@ pipeline {
 
                             echo "🚧 Đang build image cho ${svc} → ${image}"
                             isUnix() ? sh(buildCmd) : bat(buildCmd)
+
                             echo "📤 Push image lên DockerHub: ${image}"
                             isUnix() ? sh(pushCmd) : bat(pushCmd)
                         }
@@ -66,10 +93,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ CI hoàn tất! Docker images đã được đẩy lên Docker Hub với tag commit ID."
+            echo "✅ Build thành công!"
         }
         failure {
-            echo "❌ CI thất bại!"
+            echo "❌ Build thất bại!"
         }
     }
 }
