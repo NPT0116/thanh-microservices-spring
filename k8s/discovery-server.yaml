@@ -17,6 +17,9 @@ spec:
           image: npt1601/discovery-server:latest
           ports:
             - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "docker"
 ---
 apiVersion: v1
 kind: Service
