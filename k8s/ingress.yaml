@@ -3,38 +3,17 @@ kind: Ingress
 metadata:
   name: app-ingress
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    # Possibly remove rewrite-target if you don't actually need it
 spec:
   rules:
-    - host: gateway.local
+    - host: discovery.local
       http:
         paths:
-          - path: /
+          - path: /?(.*)
             pathType: Prefix
             backend:
               service:
-                name: api-gateway
+                name: discovery-server
                 port:
-                  number: 8080
-
-    - host: vets.local
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: vets-service
-                port:
-                  number: 8080
-
-    - host: visits.local
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: visits-service
-                port:
-                  number: 8080
+                  number: 8761
