@@ -1,8 +1,10 @@
 spring:
   application:
     name: api-gateway
+
   config:
     import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888/}
+
   cloud:
     gateway:
       default-filters:
@@ -15,6 +17,7 @@ spring:
             retries: 1
             statuses: SERVICE_UNAVAILABLE
             methods: POST
+
       routes:
         - id: vets-service
           uri: lb://vets-service
@@ -22,18 +25,21 @@ spring:
             - Path=/api/vet/**
           filters:
             - StripPrefix=2
+
         - id: visits-service
           uri: lb://visits-service
           predicates:
             - Path=/api/visit/**
           filters:
             - StripPrefix=2
+
         - id: customers-service
           uri: lb://customers-service
           predicates:
             - Path=/api/customer/**
           filters:
             - StripPrefix=2
+
         - id: genai-service
           uri: lb://genai-service
           predicates:
@@ -41,10 +47,3 @@ spring:
           filters:
             - StripPrefix=2
             - CircuitBreaker=name=genaiCircuitBreaker,fallbackUri=/fallback
-
----
-spring:
-  config:
-    activate:
-      on-profile: docker
-    import: configserver:http://config-server:8888
