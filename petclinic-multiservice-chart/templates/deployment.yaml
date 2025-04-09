@@ -19,4 +19,11 @@ spec:
           image: "{{ .image }}:{{ .tag }}"
           ports:
             - containerPort: {{ .port }}
+          env:
+          {{- if .env }}
+          {{- range .env }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+          {{- end }}
+          {{- end }}
 {{- end }}
