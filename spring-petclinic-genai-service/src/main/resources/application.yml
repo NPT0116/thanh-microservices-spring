@@ -25,9 +25,8 @@ spring:
       api-key: ${OPENAI_API_KEY:demo}
       chat:
         options:
-            temperature: 0.7
-            model: gpt-4o-mini
-
+          temperature: 0.7
+          model: gpt-4o-mini
 
 logging:
   level:
@@ -43,3 +42,10 @@ spring:
     activate:
       on-profile: docker
     import: configserver:http://config-server:8888
+
+eureka:
+  client:
+    registerWithEureka: true
+    fetchRegistry: true
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
