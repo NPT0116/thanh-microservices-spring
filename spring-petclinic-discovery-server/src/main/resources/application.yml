@@ -7,7 +7,6 @@ spring:
 server:
   port: 8761
 
-# Logging configuration (nếu cần)
 logging:
   level:
     org:
@@ -15,16 +14,23 @@ logging:
         boot: INFO
         web: INFO
 
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+    service-url:
+      defaultZone: http://discovery-server:8761/eureka/
+
 ---
 spring:
   config:
     activate:
       on-profile: docker
-    import: configserver:http://config-server:8888
+    import: configserver:${CONFIG_SERVER_URL:http://config-server:8888/}
 
 eureka:
   client:
-    registerWithEureka: true
-    fetchRegistry: true
+    register-with-eureka: false
+    fetch-registry: false
     service-url:
       defaultZone: http://discovery-server:8761/eureka/
